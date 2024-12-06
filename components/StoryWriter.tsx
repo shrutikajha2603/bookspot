@@ -124,7 +124,7 @@ function StoryWriter() {
           <div>
             {runFinished === null && (
               <>
-                <p className="animate-pulse mr-5">I'm waiting for you to Generate a story above...</p>
+                <p className="animate-pulse mr-5">I&apos;m waiting for you to Generate a story above...</p>
               </>
             )}
 
