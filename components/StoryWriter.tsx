@@ -1,163 +1,108 @@
-"use client";
+// components/StoryWriter.tsx
 
-import { useState } from "react";
-import { Button } from "./ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { Textarea } from "./ui/textarea";
-import { Frame } from "@gptscript-ai/gptscript";
-import renderEventMessage from "@/lib/renderEventMessage";
+'use client';
 
-const storiesPath = "public/stories";
+import { useState } from 'react';
+import { Button } from './ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Textarea } from './ui/textarea';
 
 function StoryWriter() {
-  const [story, setStory] = useState("");
-  const [pages, setPages] = useState<number>();
-  const [progress, setProgress] = useState("");
-  const [runStarted, setRunStarted] = useState<boolean>(false);
-  const [runFinished, setRunFinished] = useState<boolean | null>(null);
-  const [currentTool, setCurrentTool] = useState("");
-  const [events, setEvents] = useState<Frame[]>([]);
+  // 1. We use simple React state for everything.
+  const [storyInput, setStoryInput] = useState('');
+  const [pages, setPages] = useState('1');
+  const [storyOutput, setStoryOutput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  async function runScript(){
-    setRunStarted(true);
-    setRunFinished(false);
+  // 2. This is our manual function to call the API.
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setStoryOutput(''); // Clear previous story
 
-    const response = await fetch('/api/run-script',{
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({story, pages, path: storiesPath }),
-    });
+    try {
+      const response = await fetch('/api/run-script', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          story: storyInput,
+          pages: parseInt(pages),
+        }),
+      });
 
-    if (response.ok && response.body) {
-      // Handle streams from the API
-      // ...
-      console.log("Streaming has started");
-      
+      if (!response.ok || !response.body) {
+        throw new Error('Failed to get a response from the server.');
+      }
+
+      // 3. This loop reads the text stream from the API response.
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-
-      handleStream(reader, decoder);
-    }else{
-      setRunFinished(true);
-      setRunStarted(false);
-      console.error("Failed to start streaming");
-    }
-
-  }
-
-  async function handleStream(reader: ReadableStreamDefaultReader<Uint8Array>, decoder: TextDecoder){
-    // Manage the stream from the API...
-    while(true){
-      const {done, value} = await reader.read();
-      
-      if (done) break; //breaks out of the infinite loop!
-
-      //The decoder is used to decode the Uint8Array into a string.
-      const chunk = decoder.decode(value, {stream: true});
-
-      //We split the chunk into events by splitting it by the event: keyword.
-      const eventData = chunk
-      .split("\n\n")
-      .filter((line) => line.startsWith("event: "))
-      .map((line) => line.replace(/^event: /,""));
-
-      eventData.forEach(data => {
-        try {
-          const parsedData = JSON.parse(data);
-          if (parsedData.type === "callProgress") {
-            setProgress(parsedData.output[parsedData.output.length - 1].content)
-            setCurrentTool(parsedData.tool?.description || "");
-          }else if (parsedData.type === "callStart"){
-            setCurrentTool(parsedData.tool?.description || "");
-          }else if (parsedData.type === "runFinish"){
-            setRunFinished(true);
-            setRunStarted(false);
-          }else{
-            setEvents((prevEvents) => [...prevEvents, parsedData]);
-          }
-        } catch (error) {
-          console.error("Failed to parse JSON", error);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break; // The stream is finished.
         }
-      })
-
+        const chunk = decoder.decode(value);
+        // Append each piece of the story to our output state
+        setStoryOutput((prev) => prev + chunk);
+      }
+    } catch (error) {
+      console.error('An error occurred:', error);
+      setStoryOutput('An error occurred while generating the story.');
+    } finally {
+      setIsLoading(false); // Ensure loading is turned off
     }
-  }
+  };
 
   return (
     <div className="flex flex-col container">
-      <section className="flex-1 flex flex-col border border-orange-300 rounded-md p-10 space-y-2 mr-3">
-        <Textarea 
-          value={story}
-          onChange={(e) => setStory(e.target.value)}
-          placeholder="Write a story about a robot and a human who became friends"
-          className="flex-1 text-black"
-        />
+      {/* The form now uses our manual state and submit handler */}
+      <form onSubmit={handleSubmit}>
+        <section className="flex-1 flex flex-col border border-orange-300 rounded-md p-10 space-y-2 mr-3">
+          <Textarea
+            value={storyInput}
+            onChange={(e) => setStoryInput(e.target.value)}
+            placeholder="Write a story about a robot and a human who became friends"
+            className="flex-1 text-black"
+            required
+          />
 
-        <Select onValueChange={value => setPages(parseInt(value))}>
-          <SelectTrigger>
-            <SelectValue placeholder="How many pages should the story be?" />
-          </SelectTrigger>
+          <Select value={pages} onValueChange={setPages}>
+            <SelectTrigger>
+              <SelectValue placeholder="How many pages should the story be?" />
+            </SelectTrigger>
+            <SelectContent className="w-full">
+              {Array.from({ length: 10 }, (_, i) => (
+                <SelectItem key={i} value={String(i + 1)}>
+                  {i + 1}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <SelectContent className="w-full">
-            {Array.from({ length: 10 } , (_, i) => (
-              <SelectItem key={i} value={String(i + 1)}>
-                {i + 1}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Button
+            disabled={isLoading || !storyInput}
+            className="w-full"
+            size="lg"
+            type="submit"
+          >
+            {isLoading ? 'Generating Story...' : 'Generate Story'}
+          </Button>
+        </section>
+      </form>
 
-        <Button disabled={!story || !pages || runStarted} className="w-full" size="lg" onClick={runScript}>Generate Story
-        </Button>
-      </section>
-
+      {/* The output section displays our manually built story string */}
       <section className="flex-1 pb-5 mt-5 mr-3">
-        <div className="flex flex-col-reverse w-full spacey-y-2 bg-gray-800 rounded-md text-gray-200 font-mono p-10 h-96 overflow-y-auto">
-          <div>
-            {runFinished === null && (
-              <>
-                <p className="animate-pulse mr-5">I&apos;m waiting for you to Generate a story above...</p>
-              </>
+        <div className="flex flex-col-reverse w-full space-y-2 bg-gray-800 rounded-md text-gray-200 font-mono p-10 h-96 overflow-y-auto">
+          <div className="whitespace-pre-wrap">
+            {storyOutput || (
+              <p className="animate-pulse">
+                I'm waiting for you to Generate a story above...
+              </p>
             )}
-
-            <span className="mr-5">{">>"}</span>
-            {progress}
           </div>
-
-          {/* Current Tool */}
-          {currentTool && (
-            <div className="py-10">
-              <span className="mr-5">{"--- [Current Tool] ---"}</span>
-              {currentTool}
-            </div>
-          )}
-
-          {/* Render Events... */}
-          <div className="space-y-5">
-            {events.map((event, index) => (
-              <div key={index}>
-                <span className="mr-5">{">>"}</span>
-                {renderEventMessage(event)}
-              </div>
-            ))}
-          </div>
-
-          {runStarted && (
-            <div>
-              <span className="mr-5 animate-in">
-                {"--- [AI StoryTeller Has Started] ---"}
-              </span>
-              <br />
-            </div>
-          )}
         </div>
       </section>
     </div>
