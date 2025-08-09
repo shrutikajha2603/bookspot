@@ -4,15 +4,13 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
 import { put } from '@vercel/blob';
 
-// NOTE: We no longer need 'fs' or 'path'
-
 // Initialize the Google provider
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
-// The prompt is now a constant string inside the code
-const promptTemplate = `
+// The main prompt for writing the story
+const storyPromptTemplate = `
 You are an accomplished children's story writer. Your style is engaging, imaginative, and always appropriate for children.
 
 Based on the user's request below, write a complete story. The story MUST have exactly \${pages} pages.
@@ -28,19 +26,36 @@ export async function POST(req: Request) {
   try {
     const { story, pages } = await req.json();
 
-    const finalPrompt = promptTemplate
+    // --- NEW MODERATION STEP ---
+    // 1. Ask Gemini to check the user's prompt first.
+    const moderationPrompt = `Is the following prompt appropriate for a children's story? Answer with only the word "yes" or "no". Prompt: "${story}"`;
+
+    const { text: moderationResponse } = await generateText({
+      model: google('models/gemini-1.5-flash-latest'), // Use the fast model for this simple check
+      prompt: moderationPrompt,
+    });
+
+    // 2. Check the response. If it's not "yes", reject the request.
+    if (!moderationResponse.toLowerCase().includes('yes')) {
+      // Return a 400 Bad Request error with a clear message
+      return new Response('The provided prompt is not appropriate for a children\'s story.', {
+        status: 400,
+      });
+    }
+
+    // --- IF MODERATION PASSES, CONTINUE WITH STORY GENERATION ---
+
+    const finalPrompt = storyPromptTemplate
       .replace('${story}', story)
       .replace('${pages}', pages || 1);
 
-    // Get the full story text from the AI
     const { text } = await generateText({
       model: google('models/gemini-1.5-flash-latest'),
       prompt: finalPrompt,
     });
 
-    // --- FIX: Add a unique timestamp to the story title ---
     const uniqueId = Date.now();
-    const storyTitle = `${story.substring(0, 2000).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${uniqueId}`;
+    const storyTitle = `${story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${uniqueId}`;
     
     const storyPages = text.split('---PAGEBREAK---').map(p => p.trim()).filter(p => p !== '');
 
