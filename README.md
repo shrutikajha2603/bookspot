@@ -2,7 +2,7 @@
 
 Welcome to BlogSpot StoryTeller AI! This is a web application that uses the power of Google's Gemini AI to generate unique, multi-page children's stories from a simple prompt. Generated stories are saved to a personal library where they can be read and enjoyed anytime.
 
-![BlogSpot StoryTeller AI Screenshot](![alt text](image.png))
+(image.png)
 
 ## ✨ Features
 
