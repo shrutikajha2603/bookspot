@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     });
 
     const uniqueId = Date.now();
-    const storyTitle = `${story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${uniqueId}`;
+    const storyTitle = `${story.substring(0, 2000).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${uniqueId}`;
     
     const storyPages = text.split('---PAGEBREAK---').map(p => p.trim()).filter(p => p !== '');
 
