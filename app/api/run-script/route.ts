@@ -1,15 +1,8 @@
 // app/api/run-script/route.ts
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText, experimental_generateImage } from 'ai';
+import { generateText } from 'ai';
 import { put } from '@vercel/blob';
-import { PageData } from '@/types/story';
-
-// Define a local type for the raw data we expect from the AI
-type AIResponsePage = {
-  pageContent: string;
-  imagePrompt: string;
-};
 
 // Initialize the Google provider
 const google = createGoogleGenerativeAI({
@@ -32,51 +25,34 @@ export async function POST(req: Request) {
       .replace('${story}', story)
       .replace('${pages}', pages || 1);
 
+    // Get the full story text from the AI
     const { text } = await generateText({
-      model: google('models/gemini-1.5-pro-latest'),
+      model: google('models/gemini-1.5-flash-latest'), // Using the faster model is fine for text
       prompt: finalPrompt,
     });
 
-    // Cast the parsed JSON to our new local type
-    const storyDataFromAI: AIResponsePage[] = JSON.parse(text);
+    // Prepare a unique title for the story folder in the cloud
+    const storyTitle = story.substring(0, 200).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
 
-    const storyTitle = story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+    // Split the story into pages using our page break marker
+    const storyPages = text.split('---PAGEBREAK---').map(p => p.trim()).filter(p => p !== '');
 
-    // This array will hold the final data that matches the PageData type
-    const finalStoryPages: PageData[] = [];
+    // Loop through each page and upload it as a simple text file
+    for (let i = 0; i < storyPages.length; i++) {
+      const pageContent = storyPages[i];
+      const blobPath = `${storyTitle}/page_${i + 1}.txt`;
 
-    for (const pageFromAI of storyDataFromAI) {
-      const { image } = await experimental_generateImage({
-          model: google.image('models/imagen-2'),
-          // Use the imagePrompt from our correctly typed object
-          prompt: pageFromAI.imagePrompt,
-          size: '1024x1024',
+      // Upload the plain text file to Vercel Blob
+      await put(blobPath, pageContent, {
+        access: 'public',
+        contentType: 'text/plain',
       });
-
-      // Create an object that matches the PageData structure
-      const finalPageData: PageData = {
-        pageContent: pageFromAI.pageContent,
-        imageUrl: String(image)
-      };
-
-      // Push it to our final array
-      finalStoryPages.push(finalPageData);
     }
 
-    // Now, upload the correctly structured data to Vercel Blob
-    for (let i = 0; i < finalStoryPages.length; i++) {
-        const pageToUpload = finalStoryPages[i];
-        const blobPath = `${storyTitle}/page_${i + 1}.json`;
-        await put(blobPath, JSON.stringify(pageToUpload), {
-            access: 'public',
-            contentType: 'application/json',
-        });
-    }
-
-    const fullStoryText = finalStoryPages.map((p) => p.pageContent).join('\n\n');
+    // Stream the full story text back for the live preview
     const readableStream = new ReadableStream({
         start(controller) {
-          controller.enqueue(new TextEncoder().encode(fullStoryText));
+          controller.enqueue(new TextEncoder().encode(text.replace(/---PAGEBREAK---/g, '\n\n')));
           controller.close();
         },
     });
