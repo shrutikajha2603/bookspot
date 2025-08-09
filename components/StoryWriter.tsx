@@ -1,10 +1,14 @@
-// components/StoryWriter.tsx
-
 'use client';
 
 import { useState } from 'react';
 import { Button } from './ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 import { Textarea } from './ui/textarea';
 
 function StoryWriter() {
@@ -60,7 +64,8 @@ function StoryWriter() {
             value={storyInput}
             onChange={(e) => setStoryInput(e.target.value)}
             placeholder="Write a story about a robot and a human who became friends"
-            className="flex-1 text-black"
+            // FIX: Removed 'text-black' and added adaptive text and background colors
+            className="flex-1 bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-200"
             required
           />
 
@@ -68,6 +73,7 @@ function StoryWriter() {
             <SelectTrigger>
               <SelectValue placeholder="How many pages should the story be?" />
             </SelectTrigger>
+
             <SelectContent className="w-full">
               {Array.from({ length: 10 }, (_, i) => (
                 <SelectItem key={i} value={String(i + 1)}>
@@ -92,7 +98,6 @@ function StoryWriter() {
         <div className="flex flex-col-reverse w-full space-y-2 bg-gray-800 rounded-md text-gray-200 font-mono p-10 h-96 overflow-y-auto">
           <div className="whitespace-pre-wrap">
             {storyOutput || (
-              // FIX: Replaced the apostrophe in "I'm"
               <p className="animate-pulse">
                 I&apos;m waiting for you to Generate a story above...
               </p>
