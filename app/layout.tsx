@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import { ThemeProvider } from "@/components/theme-provider"; // 1. Import the ThemeProvider
 
 export const metadata: Metadata = {
-  title: "StoryTeller AI",
+  title: "BlogSpot StoryTeller AI",
   description: "Bringing your stories to life!",
 };
 

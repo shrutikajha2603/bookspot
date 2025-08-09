@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📖 BlogSpot StoryTeller AI
 
-## Getting Started
+Welcome to StoryTeller AI! This is a web application that uses the power of Google's Gemini AI to generate unique, multi-page children's stories from a simple prompt. Generated stories are saved to a personal library where they can be read and enjoyed anytime.
 
-First, run the development server:
+![StoryTeller AI Screenshot](https://i.imgur.com/780ac7.jpg)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## ✨ Features
+
+-   **AI-Powered Story Generation**: Leverages the Google Gemini API to create original stories based on user prompts.
+-   **Persistent Story Library**: Automatically saves every generated story to a cloud-based library using Vercel Blob storage.
+-   **Dynamic Page Viewer**: Read your generated stories page-by-page with a clean, paginated interface.
+-   **Dark/Light Mode**: A beautiful, theme-able UI that respects user preferences for light or dark mode, built with Tailwind CSS.
+-   **Serverless Deployment**: Fully configured to run on Vercel's powerful and scalable serverless infrastructure.
+
+---
+
+## 🛠️ Tech Stack
+
+-   **Framework**: [Next.js](https://nextjs.org/) (App Router)
+-   **Language**: [TypeScript](https://www.typescriptlang.org/)
+-   **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+-   **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
+-   **AI Model**: [Google Gemini API](https://ai.google.dev/)
+-   **Storage**: [Vercel Blob](httpss://vercel.com/storage/blob)
+-   **Deployment**: [Vercel](https://vercel.com/)
+
+---
+
+## 🚀 Getting Started
+
+Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
+
+### Prerequisites
+
+-   [Node.js](https://nodejs.org/en) (v18 or later)
+-   [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+-   A [Google AI Studio API Key](https://makersuite.google.com/)
+-   A [Vercel](https://vercel.com) account (for Vercel Blob storage)
+
+### Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/shrutikajha2603/bookspot.git](https://github.com/shrutikajha2603/bookspot.git)
+    cd bookspot
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Set up your environment variables:**
+    -   Create a new file in the root of your project named `.env.local`.
+    -   Add your secret keys to this file. This file is ignored by Git and should not be committed.
+
+    ```ini
+    # .env.local
+
+    # Your API key from Google AI Studio
+    GOOGLE_GENERATIVE_AI_API_KEY="AI...your-google-key-here"
+
+    # Your Read-Write token from your Vercel Blob store
+    BLOB_READ_WRITE_TOKEN="vercel_blob_rw_...your-blob-token-here"
+    ```
+
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ☁️ Deployment
 
-## Learn More
+This project is optimized for deployment on [Vercel](https://vercel.com/).
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Push your code** to your GitHub repository.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2.  **Import the project** into Vercel from your GitHub repository.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3.  **Configure Environment Variables:**
+    -   In your Vercel project settings, navigate to the "Environment Variables" section.
+    -   Add the same two variables from your `.env.local` file: `GOOGLE_GENERATIVE_AI_API_KEY` and `BLOB_READ_WRITE_TOKEN`.
 
-## Deploy on Vercel
+4.  **Connect Vercel Blob Storage:**
+    -   In your Vercel project settings, navigate to the "Storage" tab.
+    -   If you haven't already, create a new Blob store and **connect it** to this project. This ensures the `BLOB_READ_WRITE_TOKEN` is correctly configured for the deployment.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+5.  **Deploy!** Vercel will automatically build and deploy your project. Any subsequent pushes to your main branch will trigger a new deployment.
