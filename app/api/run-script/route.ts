@@ -11,7 +11,7 @@ const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
-// --- FIX: The prompt is now a constant string inside the code ---
+// The prompt is now a constant string inside the code
 const promptTemplate = `
 You are an accomplished children's story writer. Your style is engaging, imaginative, and always appropriate for children.
 
@@ -28,7 +28,6 @@ export async function POST(req: Request) {
   try {
     const { story, pages } = await req.json();
 
-    // We no longer need to call getPromptTemplate()
     const finalPrompt = promptTemplate
       .replace('${story}', story)
       .replace('${pages}', pages || 1);
@@ -39,8 +38,10 @@ export async function POST(req: Request) {
       prompt: finalPrompt,
     });
 
-    // ... The rest of your code for saving to Vercel Blob remains the same ...
-    const storyTitle = story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+    // --- FIX: Add a unique timestamp to the story title ---
+    const uniqueId = Date.now();
+    const storyTitle = `${story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}-${uniqueId}`;
+    
     const storyPages = text.split('---PAGEBREAK---').map(p => p.trim()).filter(p => p !== '');
 
     for (let i = 0; i < storyPages.length; i++) {
