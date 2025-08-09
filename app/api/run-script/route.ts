@@ -1,18 +1,22 @@
 // app/api/run-script/route.ts
 
-// CORRECT IMPORTS: create... from the provider, experimental... from the core.
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText, experimental_generateImage } from 'ai';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { put } from '@vercel/blob'; // 1. Import 'put' from Vercel Blob
+
+// NOTE: We no longer need 'fs' or 'path' because we are saving to the cloud.
 
 // Initialize the Google provider
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
-// Helper to get the prompt template
+// Helper to get the prompt template (this remains the same for now, but could be simplified)
 async function getPromptTemplate() {
+  // In a real deployment, you might move this template string directly into the code
+  // to avoid file system reads, but this will still work.
+  const { promises: fs } = await import('fs');
+  const path = await import('path');
   const filePath = path.join(process.cwd(), 'app/api/run-script/story-book.gpt');
   return fs.readFile(filePath, 'utf-8');
 }
@@ -33,25 +37,36 @@ export async function POST(req: Request) {
 
     const storyData = JSON.parse(text);
 
-    // Prepare to save the story
+    // Prepare a unique title for the story folder in the cloud
     const storyTitle = story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-    const storyPath = path.join(process.cwd(), 'public/stories', storyTitle);
-    await fs.mkdir(storyPath, { recursive: true });
 
-    // Loop through each page, generate image, and save files
+    // --- VERCEL BLOB LOGIC STARTS HERE ---
+
+    // Loop through each page, generate image, and UPLOAD files to Vercel Blob
     for (let i = 0; i < storyData.length; i++) {
       const page = storyData[i];
       
-      // Call the correct experimental function for image generation
+      // Generate the image
       const { image } = await experimental_generateImage({
-          model: google.image('models/imagen-2'), // Specify the model with .image()
+          model: google.image('models/imagen-2'),
           prompt: page.imagePrompt,
-          size: '1024x1024', // Specify a size for the image
+          size: '1024x1024',
       });
 
-      // Save page text and the resulting image URL
-      await fs.writeFile(path.join(storyPath, `page_${i + 1}.txt`), page.pageContent);
-      await fs.writeFile(path.join(storyPath, `page_${i + 1}.img.txt`), String(image));
+      // Define the path for the JSON file in the cloud
+      const blobPath = `${storyTitle}/page_${i + 1}.json`;
+
+      // Create the JSON object to upload
+      const pageData = {
+        pageContent: page.pageContent,
+        imageUrl: String(image) // The URL of the generated image
+      };
+
+      // Upload the JSON file to Vercel Blob
+      await put(blobPath, JSON.stringify(pageData), {
+        access: 'public', // Make it publicly accessible to be read later
+        contentType: 'application/json',
+      });
     }
 
     // Stream the full story text back for the live preview
