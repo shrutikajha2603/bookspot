@@ -32,7 +32,7 @@ export default async function StoryLibraryPage() {
         </ul>
       ) : (
         <p className="text-center text-gray-500">
-          You haven't generated any stories yet. Go back to create one!
+          You haven&apos;t generated any stories yet. Go back to create one!
         </p>
       )}
     </div>

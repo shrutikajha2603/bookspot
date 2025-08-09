@@ -2,19 +2,22 @@
 
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText, experimental_generateImage } from 'ai';
-import { put } from '@vercel/blob'; // 1. Import 'put' from Vercel Blob
+import { put } from '@vercel/blob';
+import { PageData } from '@/types/story';
 
-// NOTE: We no longer need 'fs' or 'path' because we are saving to the cloud.
+// Define a local type for the raw data we expect from the AI
+type AIResponsePage = {
+  pageContent: string;
+  imagePrompt: string;
+};
 
 // Initialize the Google provider
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
 
-// Helper to get the prompt template (this remains the same for now, but could be simplified)
+// Helper to get the prompt template
 async function getPromptTemplate() {
-  // In a real deployment, you might move this template string directly into the code
-  // to avoid file system reads, but this will still work.
   const { promises: fs } = await import('fs');
   const path = await import('path');
   const filePath = path.join(process.cwd(), 'app/api/run-script/story-book.gpt');
@@ -29,48 +32,48 @@ export async function POST(req: Request) {
       .replace('${story}', story)
       .replace('${pages}', pages || 1);
 
-    // Get the structured JSON from the AI
     const { text } = await generateText({
       model: google('models/gemini-1.5-pro-latest'),
       prompt: finalPrompt,
     });
 
-    const storyData = JSON.parse(text);
+    // Cast the parsed JSON to our new local type
+    const storyDataFromAI: AIResponsePage[] = JSON.parse(text);
 
-    // Prepare a unique title for the story folder in the cloud
     const storyTitle = story.substring(0, 20).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
 
-    // --- VERCEL BLOB LOGIC STARTS HERE ---
+    // This array will hold the final data that matches the PageData type
+    const finalStoryPages: PageData[] = [];
 
-    // Loop through each page, generate image, and UPLOAD files to Vercel Blob
-    for (let i = 0; i < storyData.length; i++) {
-      const page = storyData[i];
-      
-      // Generate the image
+    for (const pageFromAI of storyDataFromAI) {
       const { image } = await experimental_generateImage({
           model: google.image('models/imagen-2'),
-          prompt: page.imagePrompt,
+          // Use the imagePrompt from our correctly typed object
+          prompt: pageFromAI.imagePrompt,
           size: '1024x1024',
       });
 
-      // Define the path for the JSON file in the cloud
-      const blobPath = `${storyTitle}/page_${i + 1}.json`;
-
-      // Create the JSON object to upload
-      const pageData = {
-        pageContent: page.pageContent,
-        imageUrl: String(image) // The URL of the generated image
+      // Create an object that matches the PageData structure
+      const finalPageData: PageData = {
+        pageContent: pageFromAI.pageContent,
+        imageUrl: String(image)
       };
 
-      // Upload the JSON file to Vercel Blob
-      await put(blobPath, JSON.stringify(pageData), {
-        access: 'public', // Make it publicly accessible to be read later
-        contentType: 'application/json',
-      });
+      // Push it to our final array
+      finalStoryPages.push(finalPageData);
     }
 
-    // Stream the full story text back for the live preview
-    const fullStoryText = storyData.map((p: any) => p.pageContent).join('\n\n');
+    // Now, upload the correctly structured data to Vercel Blob
+    for (let i = 0; i < finalStoryPages.length; i++) {
+        const pageToUpload = finalStoryPages[i];
+        const blobPath = `${storyTitle}/page_${i + 1}.json`;
+        await put(blobPath, JSON.stringify(pageToUpload), {
+            access: 'public',
+            contentType: 'application/json',
+        });
+    }
+
+    const fullStoryText = finalStoryPages.map((p) => p.pageContent).join('\n\n');
     const readableStream = new ReadableStream({
         start(controller) {
           controller.enqueue(new TextEncoder().encode(fullStoryText));
